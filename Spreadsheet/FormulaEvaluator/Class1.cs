@@ -42,16 +42,25 @@ namespace FormulaEvaluator
             String[] importantOperators = new String[] { "+", "-", "*", "/" };
             String[] otherOperators = new String[] { "(", ")" };
 
-            foreach (String s in substrings)
+            foreach (String sub in substrings)
             {
+                // Allows s to be reassigned if needed
+                String s = sub;
+
                 // ignores empty or whitespace strings
                 if (s == "" || s == " ")
                 {
                     continue;
                 }
 
+                // If s is a valid variable name, assign its value to s
+                if (isValidString(s))
+                {
+                    s = variableEvaluator(s).ToString();
+                }
+
                 // If s is a non-paranthesis operator
-                else if (importantOperators.Contains(s))
+                if (importantOperators.Contains(s))
                 {
                     // If the last token processed was also an operator, it is an invalid expression
                     // e.g. "+-", "++", "/*" etc.
@@ -76,11 +85,6 @@ namespace FormulaEvaluator
 
 
                 else if (int.TryParse(s, out int result))
-                {
-                    operatorLastUsed = false;
-                }
-
-                else if (isValidString(s))
                 {
                     operatorLastUsed = false;
                 }
