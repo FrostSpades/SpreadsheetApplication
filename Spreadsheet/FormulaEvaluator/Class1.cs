@@ -48,7 +48,7 @@ namespace FormulaEvaluator
                 String s = sub;
 
                 // ignores empty or whitespace strings
-                if (s == "" || s == " ")
+                if (s.Equals("") || s.Equals(" "))
                 {
                     continue;
                 }
@@ -74,19 +74,171 @@ namespace FormulaEvaluator
                     }
 
 
+                    // Checks which operation s belongs to
+                    if (s.Equals("*") || s.Equals("/"))
+                    {
+                        operators.Push(s);
+                    }
 
+                    else
+                    {
+
+                        if (operators.Count > 0 && (operators.Peek().Equals("+") || operators.Peek().Equals("-")))
+                        {
+                            // If the values stack does not have at least two values,
+                            // throw an exception.
+                            if (values.Count < 2)
+                            {
+                                throw new ArgumentException("Invalid Expression");
+                            }
+
+                            int right = values.Pop();
+                            int left = values.Pop();
+                            String oper = operators.Pop();
+
+                            if (oper.Equals("+"))
+                            {
+                                values.Push(left + right);
+                            }
+                            else
+                            {
+                                values.Push(left - right);
+                            }
+                        }
+
+                        operators.Push(s);
+                    }
                 }
 
 
+
+                // Checks if s is a parenthesis
                 else if (otherOperators.Contains(s))
                 {
                     operatorLastUsed = false;
+
+
+                    if (s.Equals("("))
+                    {
+                        operators.Push("(");
+                    }
+
+                    else
+                    {
+                        // Checks if + or - is at top of stack
+                        if (operators.Count > 0 && (operators.Peek().Equals("+") || operators.Peek().Equals("-")))
+                        {
+                            if (values.Count < 2)
+                            {
+                                throw new ArgumentException("Invalid Expression");
+                            }
+
+                            int right = values.Pop();
+                            int left = values.Pop();
+                            String oper = operators.Pop();
+
+                            if (oper.Equals("+"))
+                            {
+                                values.Push(left + right);
+                            }
+                            else
+                            {
+                                values.Push(left - right);
+                            }
+
+                        }
+
+                        // If the next item on operators stack isnt "(" throw an exception
+                        if (operators.Count == 0 || !operators.Pop().Equals("("))
+                        {
+                            throw new ArgumentException("Invalid Expression");
+                        }
+
+
+                        // Checks if * or / is at top of stack
+                        if (operators.Count > 0 && (operators.Peek().Equals("*") || operators.Peek().Equals("/")))
+                        {
+                            if (values.Count < 2)
+                            {
+                                throw new ArgumentException("Invalid Expression");
+                            }
+
+                            int right = values.Pop();
+                            int left = values.Pop();
+                            String oper = operators.Pop();
+
+                            if (oper.Equals("*"))
+                            {
+                                values.Push(left * right);
+                            }
+                            else
+                            {
+                                if (right == 0)
+                                {
+                                    throw new ArgumentException("Divide by Zero");
+                                }
+
+                                values.Push(left / right);
+                            }
+                        }
+
+                    }
                 }
 
 
+
+                // Checks if s is an integer, and if it is, stores the result in "result"
                 else if (int.TryParse(s, out int result))
                 {
                     operatorLastUsed = false;
+
+                    // Checks if the operator stack has a multiply or divide at the top
+                    if (operators.Count > 0)
+                    {
+                       
+                        if (operators.Peek().Equals("*"))
+                        {
+                            if (values.Count == 0)
+                            {
+                                throw new ArgumentException("Invalid Expression");
+                            }
+
+                            int left = values.Pop();
+                            operators.Pop();
+
+                            values.Push(left * result);
+                        }
+
+
+
+                        else if (operators.Peek().Equals("/"))
+                        {
+                            if (values.Count == 0)
+                            {
+                                throw new ArgumentException("Invalid Expression");
+                            }
+
+                            int numerator = values.Pop();
+                            operators.Pop();
+
+                            if (result == 0)
+                            {
+                                throw new ArgumentException("Divide by Zero");
+                            }
+
+                            values.Push(numerator / result);
+                        }
+
+                        else
+                        {
+                            values.Push(result);
+                        }
+                    }
+
+                    else
+                    {
+                        values.Push(result);
+                    }
                 }
 
                 else
@@ -95,7 +247,55 @@ namespace FormulaEvaluator
                 }
             }
 
-            return 0;
+
+            // Evaluates final expression if the last operator on stack is + or -
+            if (operators.Count == 1)
+            {
+                if (values.Count != 2)
+                {
+                    throw new ArgumentException("Invalid Expression");
+                }
+
+                int right = values.Pop();
+                int left = values.Pop();
+                String oper = operators.Pop();
+
+                if (oper.Equals("+"))
+                {
+                    return left + right;
+                }
+
+                else if (oper.Equals("-"))
+                {
+                    return left - right;
+                }
+
+                else
+                {
+                    throw new ArgumentException("Invalid Expression");
+                }
+            }
+
+
+            // Returns value if operator stack is empty
+            else if (operators.Count == 0)
+            {
+                if (values.Count > 1)
+                {
+                    throw new ArgumentException("Invalid Expression");
+                }
+
+                else
+                {
+                    return values.Pop();
+                }
+            }
+
+            // If operator stack has >1 values left, throw an exception
+            else
+            {
+                throw new ArgumentException("Invalid Expression");
+            }
         }
 
         /// <summary>
