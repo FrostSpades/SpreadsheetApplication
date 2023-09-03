@@ -280,7 +280,7 @@ namespace FormulaEvaluator
             // Returns value if operator stack is empty
             else if (operators.Count == 0)
             {
-                if (values.Count > 1)
+                if (values.Count != 1)
                 {
                     throw new ArgumentException("Invalid Expression");
                 }

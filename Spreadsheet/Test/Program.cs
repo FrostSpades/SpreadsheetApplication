@@ -33,6 +33,7 @@ void testExceptions()
     //Console.WriteLine(Evaluator.Evaluate("5*4+(+7)", SampleEvaluator));
     //Console.WriteLine(Evaluator.Evaluate("-4*5+1", SampleEvaluator));
     //Console.WriteLine(Evaluator.Evaluate("A4A", SampleEvaluator));
+    //Console.WriteLine(Evaluator.Evaluate("", SampleEvaluator));
 }
 
 void testVariables()
@@ -46,4 +47,4 @@ void testVariables()
 
 //testRandomExpressions();
 //testExceptions();
-testVariables();
+//testVariables();
