@@ -259,4 +259,118 @@ public class DependencyGraphTest
         }
     }
 
+
+    /// <summary>
+    /// Tests functionality of NumDependees method.
+    /// </summary>
+    [TestMethod]
+    public void SimpleNumDependeesTest()
+    {
+        DependencyGraph dg = new DependencyGraph();
+        
+        Assert.AreEqual(0, dg.NumDependees("t"));
+
+        dg.AddDependency("a", "t");
+        dg.AddDependency("b", "t");
+        dg.AddDependency("c", "t");
+        dg.AddDependency("d", "t");
+        dg.AddDependency("e", "t");
+        dg.AddDependency("f", "t");
+
+        Assert.AreEqual(6, dg.NumDependees("t"));
+
+        dg.RemoveDependency("a", "t");
+        Assert.AreEqual(5, dg.NumDependees("t"));
+
+        dg.RemoveDependency("b", "t");
+        Assert.AreEqual(4, dg.NumDependees("t"));
+
+        dg.RemoveDependency("c", "t");
+        Assert.AreEqual(3, dg.NumDependees("t"));
+
+        dg.RemoveDependency("d", "t");
+        Assert.AreEqual(2, dg.NumDependees("t"));
+
+        dg.RemoveDependency("e", "t");
+        Assert.AreEqual(1, dg.NumDependees("t"));
+
+        dg.RemoveDependency("f", "t");
+        Assert.AreEqual(0, dg.NumDependees("t"));
+    }
+
+    /// <summary>
+    /// Tries to remove a non-existent ordered pair.
+    /// </summary>
+    [TestMethod]
+    public void RemoveNonExistentOrderedPair()
+    {
+        DependencyGraph dg = new();
+
+        dg.AddDependency("a", "c");
+
+        dg.RemoveDependency("b", "b");
+        dg.RemoveDependency("a", "d");
+        dg.RemoveDependency("d", "c");
+        dg.RemoveDependency("c", "a");
+
+        Assert.AreEqual(1, dg.NumDependees("c"));
+        Assert.AreEqual(1, dg.NumDependencies);
+    }
+
+
+    /// <summary>
+    /// Tests functionality for the HasDependents method
+    /// </summary>
+    [TestMethod]
+    public void GeneralHasDependentsTests()
+    {
+        DependencyGraph dg = new();
+
+        dg.AddDependency("a", "b");
+        dg.AddDependency("a", "c");
+        dg.AddDependency("a", "d");
+        dg.AddDependency("a", "e");
+        dg.AddDependency("a", "f");
+
+        dg.AddDependency("c", "a");
+        dg.AddDependency("c", "b");
+        dg.AddDependency("c", "d");
+        dg.AddDependency("c", "e");
+        dg.AddDependency("c", "f");
+
+        Assert.IsTrue(dg.HasDependents("a"));
+        Assert.IsTrue(dg.HasDependents("c"));
+
+        Assert.IsFalse(dg.HasDependents("b"));
+        Assert.IsFalse(dg.HasDependents("g"));
+    }
+
+
+    /// <summary>
+    /// Tests functionality for the HasDependees method
+    /// </summary>
+    [TestMethod]
+    public void GeneralHasDependeesTests()
+    {
+        DependencyGraph dg = new();
+
+        dg.AddDependency("a", "b");
+        dg.AddDependency("a", "g");
+        dg.AddDependency("a", "d");
+        dg.AddDependency("a", "e");
+        dg.AddDependency("a", "f");
+
+        dg.AddDependency("c", "g");
+        dg.AddDependency("c", "b");
+        dg.AddDependency("c", "d");
+        dg.AddDependency("c", "e");
+        dg.AddDependency("c", "f");
+
+        Assert.IsFalse(dg.HasDependees("a"));
+        Assert.IsFalse(dg.HasDependees("c"));
+        Assert.IsFalse(dg.HasDependees("h"));
+
+        Assert.IsTrue(dg.HasDependees("b"));
+        Assert.IsTrue(dg.HasDependees("g"));
+    }
 }
