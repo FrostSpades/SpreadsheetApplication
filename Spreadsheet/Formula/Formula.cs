@@ -71,11 +71,6 @@ public class Formula
     {
         // Generates raw tokens list
         IEnumerable<String> tokens = GetTokens(formula);
-        
-        
-        variables = new List<String>(); // field for storing variables
-        tokensList = new List<String>(); // field for storing valid tokens
-
 
         // If string contains no valid tokens
         if (tokens.Count() == 0)
@@ -85,22 +80,40 @@ public class Formula
 
 
 
+        variables = new List<String>(); // field for storing variables
+        tokensList = new List<String>(); // field for storing valid tokens
+
+        String lastToken = tokens.First(); // Keeps track of the last token processed
+        String[] operations = new string[] { "+", "-", "*", "/" }; // list of valid operations
+
+        bool firstToken = true; // True if it is the first token.
         int parenthesesCount = 0; // +1 for left parentheses and -1 for right parentheses
-        String lastToken = ""; // Keeps track of the last token processed
-        String[] operations = new string[] {"+", "-", "*", "/"}; // list of valid operations
 
-
-
-        // Checks the first element
-        if (operations.Contains(tokens.First()))
+        if (lastToken.Equals("("))
         {
-            throw new FormulaFormatException("Formula cannot begin with an operation");
+            parenthesesCount++; // Adds one to the count if the first token is a parenthesis
         }
 
 
+        
+
+        // Checks the first element
+        if (operations.Contains(tokens.First()) || lastToken.Equals(")"))
+        {
+            throw new FormulaFormatException("Illegal start of formula");
+        }
+
+        
 
         foreach (String token in tokens)
         {
+            // Skips first token
+            if (firstToken)
+            {
+                firstToken = false;
+                continue;
+            }
+
 
             if (operations.Contains(token))
             {
@@ -162,10 +175,10 @@ public class Formula
             
             else if (double.TryParse(token, out double value))
             {
-                // Checks if last token was a closing parenthesis
-                if (lastToken.Equals(")"))
+                
+                if (!lastToken.Equals("(") && !operations.Contains(lastToken))
                 {
-                    throw new FormulaFormatException("Number cannot directly follow a closing parenthesis");
+                    throw new FormulaFormatException("Number can only follow opening parenthesis or an operation");
                 }
 
                 tokensList.Add(value.ToString());
@@ -191,6 +204,13 @@ public class Formula
                 else
                 {
                     throw new FormulaFormatException("Variables are invalid");
+                }
+
+
+                // Checks the last token rules
+                if (!lastToken.Equals("(") && !operations.Contains(lastToken))
+                {
+                    throw new FormulaFormatException("Variable can only follow opening parenthesis or an operation");
                 }
             }
 
@@ -221,25 +241,11 @@ public class Formula
     /// <exception cref="FormulaFormatException"></exception>
     private void checkValidVariable(string token)
     {
-        bool firstChar = true; // True if on the first character of the string
+        char c = token[0];
 
-        foreach (char c in token)
+        if (c != '_' && !Char.IsLetter(c))
         {
-            if (firstChar)
-            {
-                if (c != '_' && !Char.IsLetter(c))
-                {
-                    throw new FormulaFormatException("Formula cannot contain illegal variables");
-                }
-            }
-            
-            else
-            {
-                if (c != '_' && !Char.IsLetter(c) && !Char.IsDigit(c))
-                {
-                    throw new FormulaFormatException("Formula cannot contain illegal variables");
-                }
-            }
+            throw new FormulaFormatException("Formula cannot contain illegal variables");
         }
     }
 
