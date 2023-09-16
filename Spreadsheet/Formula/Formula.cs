@@ -88,33 +88,41 @@ public class Formula
 
         bool firstToken = true; // True if it is the first token.
         int parenthesesCount = 0; // +1 for left parentheses and -1 for right parentheses
-
-        if (lastToken.Equals("("))
-        {
-            parenthesesCount++; // Adds one to the count if the first token is a parenthesis
-        }
-
-
-        
-
-        // Checks the first element
-        if (operations.Contains(tokens.First()) || lastToken.Equals(")"))
-        {
-            throw new FormulaFormatException("Illegal start of formula");
-        }
-
         
 
         foreach (String token in tokens)
         {
-            // Skips first token
+            // Behavior of the first token
             if (firstToken)
             {
+                if (operations.Contains(tokens.First()) || lastToken.Equals(")"))
+                {
+                    throw new FormulaFormatException("Illegal start of formula");
+                }
+
+                if (double.TryParse(token, out double value))
+                {
+                    tokensList.Add(value.ToString());
+                }
+
+                else if (token.Equals("("))
+                {
+                    tokensList.Add("(");
+                    parenthesesCount++;
+                }
+
+                else
+                {
+                    VariableHandler(normalize, isValid, token, "(");
+                }
+
                 firstToken = false;
                 continue;
             }
 
 
+
+            // Behavior of operations: +, -, *, /
             if (operations.Contains(token))
             {
                 // Checks if last token was also an operation
@@ -133,6 +141,8 @@ public class Formula
             }
 
 
+
+            // Behavior of open: (
             else if (token.Equals("("))
             {
                 parenthesesCount++;
@@ -147,6 +157,8 @@ public class Formula
             }
 
 
+
+            // Behavior of close: )
             else if (token.Equals(")"))
             {
                 parenthesesCount--;
@@ -172,7 +184,9 @@ public class Formula
                 tokensList.Add(token);
             }
 
+
             
+            // Behavior of numbers
             else if (double.TryParse(token, out double value))
             {
                 
@@ -185,33 +199,11 @@ public class Formula
             }
 
 
-            // Checks if token is a valid variable
+
+            // Behavior of variables
             else
             {
-                // Checks if token is legal
-                checkValidVariable(token);
-
-
-                // Checks if token is valid using provided delegate
-                String newToken = normalize(token);
-                
-                if (isValid(newToken))
-                {
-                    tokensList.Add(newToken);
-                    variables.Add(newToken);
-                }
-                
-                else
-                {
-                    throw new FormulaFormatException("Variables are invalid");
-                }
-
-
-                // Checks the last token rules
-                if (!lastToken.Equals("(") && !operations.Contains(lastToken))
-                {
-                    throw new FormulaFormatException("Variable can only follow opening parenthesis or an operation");
-                }
+                VariableHandler(normalize, isValid, token, lastToken);
             }
 
 
@@ -251,6 +243,46 @@ public class Formula
 
 
     /// <summary>
+    /// Helper method for handling variables. Normalizes, checks, and adds variables to the lists.
+    /// </summary>
+    /// <param name="normalize"></param>
+    /// <param name="isValid"></param>
+    /// <param name="token"></param>
+    /// <param name="lastToken"></param>
+    /// <exception cref="FormulaFormatException"></exception>
+    private void VariableHandler(Func<string, string> normalize, Func<string, bool> isValid, String token, String lastToken)
+    {
+        String[] operations = new string[] { "+", "-", "*", "/" };
+
+        // Checks if token is legal
+        checkValidVariable(token);
+
+
+        // Checks if token is valid using provided delegate
+        String newToken = normalize(token);
+
+        if (isValid(newToken))
+        {
+            tokensList.Add(newToken);
+            variables.Add(newToken);
+        }
+
+        else
+        {
+            throw new FormulaFormatException("Variables are invalid");
+        }
+
+
+        // Checks the last token rules
+        if (!lastToken.Equals("(") && !operations.Contains(lastToken))
+        {
+            throw new FormulaFormatException("Variable can only follow opening parenthesis or an operation");
+        }
+    }
+
+
+
+    /// <summary>
     /// Evaluates this Formula, using the lookup delegate to determine the values of
     /// variables.  When a variable symbol v needs to be determined, it should be looked up
     /// via lookup(normalize(v)). (Here, normalize is the normalizer that was passed to
@@ -273,7 +305,202 @@ public class Formula
     /// </summary>
     public object Evaluate(Func<string, double> lookup)
     {
-        return "";
+        string[] substrings = tokensList.ToArray();
+
+        Stack<double> values = new Stack<double>();
+        Stack<String> operators = new Stack<String>();
+
+        // Value used to determine if the previous token processed was an operator
+        // Used so that there aren't situations like "+-" or "-*".
+        String[] importantOperators = new String[] { "+", "-", "*", "/" };
+        String[] otherOperators = new String[] { "(", ")" };
+
+        foreach (String sub in substrings)
+        {
+            // Allows s to be reassigned if needed
+            String s = sub;
+
+
+            // Checks if s is a variable, and looks up value if it is
+            if (variables.Contains(s))
+            {
+                try
+                {
+                    s = lookup(s).ToString();
+                }
+                catch (ArgumentException)
+                {
+                    return new FormulaError("Variable does not have value");
+                }
+            }
+
+            // If s is a non-paranthesis operator
+            if (importantOperators.Contains(s))
+            {
+
+                // Checks which operation s belongs to
+                if (s.Equals("*") || s.Equals("/"))
+                {
+                    operators.Push(s);
+                }
+
+                else
+                {
+
+                    if (operators.Count > 0 && (operators.Peek().Equals("+") || operators.Peek().Equals("-")))
+                    {
+
+                        double right = values.Pop();
+                        double left = values.Pop();
+                        String oper = operators.Pop();
+
+                        if (oper.Equals("+"))
+                        {
+                            values.Push(left + right);
+                        }
+                        else
+                        {
+                            values.Push(left - right);
+                        }
+                    }
+
+                    operators.Push(s);
+                }
+            }
+
+
+
+            // Checks if s is a parenthesis
+            else if (otherOperators.Contains(s))
+            {
+
+
+                if (s.Equals("("))
+                {
+                    operators.Push("(");
+                }
+
+                else
+                {
+                    // Checks if + or - is at top of stack
+                    if (operators.Count > 0 && (operators.Peek().Equals("+") || operators.Peek().Equals("-")))
+                    {
+                        double right = values.Pop();
+                        double left = values.Pop();
+                        String oper = operators.Pop();
+
+                        if (oper.Equals("+"))
+                        {
+                            values.Push(left + right);
+                        }
+                        else
+                        {
+                            values.Push(left - right);
+                        }
+
+                    }
+
+                    operators.Pop();
+
+
+                    // Checks if * or / is at top of stack
+                    if (operators.Count > 0 && (operators.Peek().Equals("*") || operators.Peek().Equals("/")))
+                    {
+
+                        double right = values.Pop();
+                        double left = values.Pop();
+                        String oper = operators.Pop();
+
+                        if (oper.Equals("*"))
+                        {
+                            values.Push(left * right);
+                        }
+                        else
+                        {
+                            if (right == 0)
+                            {
+                                return new FormulaError("Divide by Zero");
+                            }
+
+                            values.Push(left / right);
+                        }
+                    }
+
+                }
+            }
+
+
+
+            // Checks if s is an integer, and if it is, stores the result in "result"
+            else if (int.TryParse(s, out int result))
+            {
+
+                // Checks if the operator stack has a multiply or divide at the top
+                if (operators.Count > 0)
+                {
+
+                    if (operators.Peek().Equals("*"))
+                    {
+                        double left = values.Pop();
+                        operators.Pop();
+
+                        values.Push(left * result);
+                    }
+
+
+
+                    else if (operators.Peek().Equals("/"))
+                    {
+
+                        double numerator = values.Pop();
+                        operators.Pop();
+
+                        if (result == 0)
+                        {
+                            return new FormulaError("Divide by Zero");
+                        }
+
+                        values.Push(numerator / result);
+                    }
+
+                    else
+                    {
+                        values.Push(result);
+                    }
+                }
+
+                else
+                {
+                    values.Push(result);
+                }
+            }
+        }
+
+
+        // Evaluates final expression if the last operator on stack is + or -
+        if (operators.Count == 1)
+        {
+            double right = values.Pop();
+            double left = values.Pop();
+            String oper = operators.Pop();
+
+            if (oper.Equals("+"))
+            {
+                return left + right;
+            }
+
+            else
+            {
+                return left - right;
+            }
+        }
+
+
+        // Returns value if operator stack is empty
+        else
+        {
+            return values.Pop();
+        }
     }
 
     /// <summary>
@@ -289,7 +516,7 @@ public class Formula
     /// </summary>
     public IEnumerable<string> GetVariables()
     {
-        return new List<string>();
+        return variables;
     }
 
     /// <summary>
@@ -304,7 +531,14 @@ public class Formula
     /// </summary>
     public override string ToString()
     {
-        return "";
+        String returnString = "";
+        
+        foreach (String s in tokensList)
+        {
+            returnString = returnString + s;
+        }
+
+        return returnString;
     }
 
     /// <summary>
@@ -328,7 +562,12 @@ public class Formula
     /// </summary>
     public override bool Equals(object? obj)
     {
-        return false;
+        if (obj == null || obj is not Formula)
+        {
+            return false;
+        }
+
+        return ToString().Equals(obj.ToString());
     }
 
     /// <summary>
@@ -337,7 +576,7 @@ public class Formula
     /// </summary>
     public static bool operator ==(Formula f1, Formula f2)
     {
-        return false;
+        return f1.Equals(f2);
     }
 
     /// <summary>
@@ -346,7 +585,7 @@ public class Formula
     /// </summary>
     public static bool operator !=(Formula f1, Formula f2)
     {
-        return false;
+        return !f1.Equals(f2);
     }
 
     /// <summary>
@@ -356,7 +595,7 @@ public class Formula
     /// </summary>
     public override int GetHashCode()
     {
-        return 0;
+        return ToString().GetHashCode();
     }
 
     /// <summary>

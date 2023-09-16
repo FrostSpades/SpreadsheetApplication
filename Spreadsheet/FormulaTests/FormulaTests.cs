@@ -1,3 +1,8 @@
+// Test class used to test the formulas class
+//
+// @author Ethan Andrews
+// @version September 15, 2023
+
 using Newtonsoft.Json.Linq;
 using SpreadsheetUtilities;
 using System.Text.RegularExpressions;
@@ -132,5 +137,123 @@ public class FormulaTests
         Formula f;
 
         Assert.ThrowsException<FormulaFormatException>(() => f = new Formula("()"));
+    }
+
+
+    /// <summary>
+    /// Uppercase method used for the normalization function.
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
+    public String toUpper(String s)
+    {
+        String newString = "";
+
+        foreach (char c in s)
+        {
+            newString += char.ToUpper(c);
+        }
+
+        return newString;
+    }
+
+
+
+    /// <summary>
+    /// Tests the get variables method.
+    /// </summary>
+    [TestMethod]
+    public void GetVariablesTest()
+    {
+        Formula f = new Formula("_1+at+v");
+        List<String> list = (List<String>)f.GetVariables();
+        List<String> expectedList = new List<string> { "_1", "at", "v"};
+        
+        for (int i = 0; i < list.Count; i++)
+        {
+            Assert.AreEqual(list[i], expectedList[i]);
+        }
+
+
+        f = new Formula("_1+at+v", toUpper, s => true);
+        list = (List<String>)f.GetVariables();
+        expectedList = new List<string> { "_1", "AT", "V" };
+
+        for (int i = 0; i < list.Count; i++)
+        {
+            Assert.AreEqual(list[i], expectedList[i]);
+        }
+    }
+
+
+    /// <summary>
+    /// Tests the equals methods.
+    /// </summary>
+    [TestMethod]
+    public void EqualsTest()
+    {
+        Formula f = new Formula("1   +     2");
+        Formula g = new Formula("1+2");
+        Assert.IsTrue(f.Equals (g));
+
+        f = new Formula("A1 + 2 +_1");
+        g = new Formula("a1+2+_1", toUpper, s => true);
+        Assert.IsTrue(f.Equals (g));
+        
+        Assert.IsTrue(f == g);
+        Assert.IsFalse(f != g);
+        Assert.AreEqual(f.GetHashCode(), g.GetHashCode());
+
+        Assert.IsFalse(f.Equals(1));
+        Assert.IsFalse(f.Equals(null));
+    }
+
+
+    /// <summary>
+    /// Tests the evaluation method for no variable formulas.
+    /// </summary>
+    [TestMethod]
+    public void NoVariableEvaluationTest()
+    {
+        Formula f = new Formula("1 + 4 * 5 - 2");
+        Assert.AreEqual((double)f.Evaluate(s => 1), 19, 1e-6);
+
+        f = new Formula("(2+3) / 6");
+        Assert.AreEqual((double)f.Evaluate(s => 1), .833333333333, 1e-6);
+
+        f = new Formula("1-1-1-1-1-1-1");
+        Assert.AreEqual((double)f.Evaluate(s => 1), -5, 1e-6);
+
+        f = new Formula("1+1+1+1+1+1");
+        Assert.AreEqual((double)f.Evaluate(s => 1), 6, 1e-6);
+
+        f = new Formula("(1-2-3)-1+4-5");
+        Assert.AreEqual((double)f.Evaluate(s => 1), -6, 1e-6);
+
+        f = new Formula("(1*2*3)*1*(4*5)");
+        Assert.AreEqual((double)f.Evaluate(s => 1), 120, 1e-6);
+
+        f = new Formula("(2/3)/1/(4/4)");
+        Assert.AreEqual((double)f.Evaluate(s => 1), .666666666666, 1e-6);
+
+        f = new Formula("(2/3)/1/(4-4)");
+        Assert.AreEqual(((FormulaError)f.Evaluate(s => 1)).Reason, "Divide by Zero");
+
+        f = new Formula("1/0");
+        Assert.AreEqual(((FormulaError)f.Evaluate(s => 1)).Reason, "Divide by Zero");
+    }
+
+
+    /// <summary>
+    /// Tests the evaluation method with variables.
+    /// </summary>
+    [TestMethod]
+    public void EvaluationWithVariablesTest()
+    {
+        Formula f = new Formula("1+s+s+2");
+        Assert.AreEqual((double)(f.Evaluate(s => 1)), 5, 1e-6);
+
+        f = new Formula("1+s+s+2");
+        Assert.AreEqual(((FormulaError)f.Evaluate(s => throw new ArgumentException())).Reason, "Variable does not have value");
     }
 }
