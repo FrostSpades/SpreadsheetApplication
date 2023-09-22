@@ -520,7 +520,7 @@ public class Formula
     /// </summary>
     public IEnumerable<string> GetVariables()
     {
-        return variables;
+        return variables.ToList<string>();
     }
 
     /// <summary>

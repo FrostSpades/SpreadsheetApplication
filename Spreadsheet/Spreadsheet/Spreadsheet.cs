@@ -85,10 +85,10 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
-        // Removes all of name's dependents and sets its new value to number
+        // Removes all of name's dependees and sets its new value to number
         if (cells.ContainsKey(name))
         {
-            graph.ReplaceDependents(name, new List<string>());
+            graph.ReplaceDependees(name, new List<string>());
             cells[name].contents = number;
         }
 
@@ -120,10 +120,10 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
-        // Removes all of name's dependents and sets its new value to number
+        // Removes all of name's dependees and sets its new value to number
         if (cells.ContainsKey(name))
         {
-            graph.ReplaceDependents(name, new List<string>());
+            graph.ReplaceDependees(name, new List<string>());
             cells[name].contents = text;
         }
 
@@ -160,7 +160,7 @@ public class Spreadsheet : AbstractSpreadsheet
         // Removes all of name's dependents and sets its new value to number
         if (cells.ContainsKey(name))
         {
-            graph.ReplaceDependents(name, new List<string>());
+            graph.ReplaceDependees(name, formula.GetVariables());
             cells[name].contents = formula;
         }
 
