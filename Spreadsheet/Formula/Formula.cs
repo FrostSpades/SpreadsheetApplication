@@ -264,7 +264,11 @@ public class Formula
         if (isValid(newToken))
         {
             tokensList.Add(newToken);
-            variables.Add(newToken);
+
+            if (!variables.Contains(newToken))
+            {
+                variables.Add(newToken);
+            }
         }
 
         else
