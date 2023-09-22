@@ -151,7 +151,26 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     public override IList<string> SetCellContents(string name, Formula formula)
     {
-        throw new NotImplementedException();
+        // Throws exception if name isn't valid
+        if (!CheckValidName(name))
+        {
+            throw new InvalidNameException();
+        }
+
+        // Removes all of name's dependents and sets its new value to number
+        if (cells.ContainsKey(name))
+        {
+            graph.ReplaceDependents(name, new List<string>());
+            cells[name].contents = formula;
+        }
+
+        // If cell does not exist, add it
+        else
+        {
+            cells.Add(name, new Cell(formula));
+        }
+
+        return (IList<string>)GetCellsToRecalculate(name);
     }
 
     /// <summary>
@@ -161,11 +180,29 @@ public class Spreadsheet : AbstractSpreadsheet
     /// <exception cref="FormulaFormatException"></exception>
     private bool CheckValidName(string token)
     {
-        char c = token[0];
+        bool firstCharacter = true;
 
-        if (c != '_' && !Char.IsLetter(c))
+        foreach (char c in token)
         {
-            return false;
+            // Checks if first character is letter or underscore
+            if (firstCharacter) 
+            { 
+                if (c != '_' && !Char.IsLetter(c))
+                {
+                    return false;
+                }
+
+                firstCharacter = false;
+            }
+
+            // Checks if other characters are letters, underscores, or digits
+            else
+            {
+                if (!Char.IsLetterOrDigit(c) && c != '_')
+                {
+                    return false;
+                }
+            }
         }
 
         return true;
