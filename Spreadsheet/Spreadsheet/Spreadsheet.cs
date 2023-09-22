@@ -1,4 +1,8 @@
-﻿using SpreadsheetUtilities;
+﻿// Class that simulates spreadsheet behavior.
+// @author Ethan Andrews
+// @version September 22, 2023
+
+using SpreadsheetUtilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,6 +52,12 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     public override object GetCellContents(string name)
     {
+        // Throws an exception if name is invalid
+        if (!CheckValidName(name))
+        {
+            throw new InvalidNameException();
+        }
+
         if (cells.ContainsKey(name))
         {
             return cells[name].contents;
@@ -55,7 +65,7 @@ public class Spreadsheet : AbstractSpreadsheet
 
         else
         {
-            throw new InvalidNameException();
+            return "";
         }
     }
 
@@ -98,7 +108,7 @@ public class Spreadsheet : AbstractSpreadsheet
             cells.Add(name, new Cell(number));
         }
 
-        return (IList<string>)GetCellsToRecalculate(name);
+        return GetCells(name);
     }
 
     /// <summary>
@@ -133,7 +143,7 @@ public class Spreadsheet : AbstractSpreadsheet
             cells.Add(name, new Cell(text));
         }
 
-        return (IList<string>)GetCellsToRecalculate(name);
+        return GetCells(name);
     }
 
     /// <summary>
@@ -157,20 +167,21 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
+        // If cell does not exist, add it
+        if (!cells.ContainsKey(name))
+        {
+            cells.Add(name, new Cell(formula));
+            graph.ReplaceDependees(name, formula.GetVariables());
+        }
+
         // Removes all of name's dependents and sets its new value to number
-        if (cells.ContainsKey(name))
+        else
         {
             graph.ReplaceDependees(name, formula.GetVariables());
             cells[name].contents = formula;
         }
 
-        // If cell does not exist, add it
-        else
-        {
-            cells.Add(name, new Cell(formula));
-        }
-
-        return (IList<string>)GetCellsToRecalculate(name);
+        return GetCells(name);
     }
 
     /// <summary>
@@ -207,6 +218,26 @@ public class Spreadsheet : AbstractSpreadsheet
 
         return true;
     }
+
+    /// <summary>
+    /// Private method for returning the cells that depend on name
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    private IList<string> GetCells(string name)
+    {
+        // Gets the list of dependents and stores it in a list
+        IEnumerable<string> cellList = GetCellsToRecalculate(name);
+        IList<string> c = new List<string>();
+
+        foreach (string cell in cellList)
+        {
+            c.Add(cell);
+        }
+
+        return c;
+    }
+
 
     /// <summary>
     /// Returns an enumeration, without duplicates, of the names of all cells whose

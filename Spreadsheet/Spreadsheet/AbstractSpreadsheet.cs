@@ -178,7 +178,10 @@ public abstract class AbstractSpreadsheet
     /// <summary>
     /// A helper for the GetCellsToRecalculate method.
     /// 
-    ///   -- You should fully comment what is going on below --
+    /// Visits all nodes from a given starting node in pre-order traversal.
+    /// Once a node is visited, it adds it to the visited set so that it is not
+    /// visited again. Once the recursion is at its deepest, it adds the node
+    /// to the changed list. This allows the deepest nodes to come first.
     /// </summary>
     private void Visit(string start, string name, ISet<string> visited, LinkedList<string> changed)
     {
