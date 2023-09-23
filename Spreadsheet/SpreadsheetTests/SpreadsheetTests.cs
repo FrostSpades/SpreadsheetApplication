@@ -156,6 +156,8 @@ namespace SpreadsheetTests
             ss.SetCellContents("X1", new Formula("X2"));
 
             Assert.ThrowsException<CircularException>(() => ss.SetCellContents("X2", new Formula("X1")));
+            Assert.ThrowsException<CircularException>(() => ss.SetCellContents("X2", new Formula("X6")));
+            Assert.ThrowsException<CircularException>(() => ss.SetCellContents("X2", new Formula("X5")));
         }
 
         /// <summary>

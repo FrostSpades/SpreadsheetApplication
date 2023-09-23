@@ -174,11 +174,29 @@ public class Spreadsheet : AbstractSpreadsheet
             graph.ReplaceDependees(name, formula.GetVariables());
         }
 
-        // Removes all of name's dependents and sets its new value to number
+        // Removes all of name's dependents and sets its new value to number.
+        // If circular exception is caught, undo changes and then throw exception
         else
         {
-            graph.ReplaceDependees(name, formula.GetVariables());
-            cells[name].contents = formula;
+
+            IEnumerable<string> oldDependees = graph.GetDependees(name);
+            object oldContents = cells[name].contents;
+
+            // Try to update data
+            try
+            {
+                graph.ReplaceDependees(name, formula.GetVariables());
+                cells[name].contents = formula;
+                return GetCells(name);
+            }
+
+            // If exception is thrown, undo changes and throw CircularException
+            catch (CircularException)
+            {
+                graph.ReplaceDependees(name, oldDependees);
+                cells[name].contents = oldContents;
+                throw new CircularException();
+            }
         }
 
         return GetCells(name);
