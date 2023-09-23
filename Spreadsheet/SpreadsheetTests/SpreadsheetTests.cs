@@ -206,5 +206,21 @@ namespace SpreadsheetTests
                 Assert.AreEqual(expectedList[i], list[i]);
             }
         }
+
+
+        /// <summary>
+        /// Tests if graph stays unchanged after circular exception is thrown.
+        /// </summary>
+        [TestMethod]
+        public void TestUnchangedValue()
+        {
+            Spreadsheet ss = new Spreadsheet();
+
+            ss.SetCellContents("X1", new Formula("X2"));
+            ss.SetCellContents("X2", new Formula("1"));
+
+            Assert.ThrowsException<CircularException>(() => ss.SetCellContents("X2", new Formula("X1")));
+            Assert.AreEqual(new Formula("1"), ss.GetCellContents("X2"));
+        }
     }
 }
