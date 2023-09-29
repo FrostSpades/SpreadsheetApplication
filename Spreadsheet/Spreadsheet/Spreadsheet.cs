@@ -139,10 +139,12 @@ public class Spreadsheet : AbstractSpreadsheet
     /// Otherwise, returns the contents (as opposed to the value) of the named cell.
     /// The return value should be either a string, a double, or a Formula.
     /// </summary>
-    public override object GetCellContents(string name)
+    public override object GetCellContents(string unnormalizedName)
     {
+        string name = normalize(unnormalizedName);
+
         // Throws an exception if name is invalid
-        if (!CheckValidName(name))
+        if (!CheckValidName(name) || !isValid(name))
         {
             throw new InvalidNameException();
         }
@@ -158,9 +160,17 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
-    public override object GetCellValue(string name)
+    public override object GetCellValue(string unName)
     {
-        return cells[name].value;
+        string name = normalize(unName);
+
+        // Throws an exception if name is invalid
+        if (!CheckValidName(name) || !isValid(name))
+        {
+            throw new InvalidNameException();
+        }
+
+        return cells[normalize(name)].value;
     }
 
     /// <summary>
@@ -226,17 +236,17 @@ public class Spreadsheet : AbstractSpreadsheet
 
         if (double.TryParse(content, out double result))
         {
-            return SetCellContents(name, result);
+            return SetCellContents(nameNormalized, result);
         }
 
         else if (content.Length != 0 && content[0] == '=')
         {
-            return SetCellContents(name, new Formula(content.Substring(1), normalize, isValid));
+            return SetCellContents(nameNormalized, new Formula(content.Substring(1), normalize, isValid));
         }
 
         else
         {
-            return SetCellContents(name, content);
+            return SetCellContents(nameNormalized, content);
         }
     }
 
@@ -460,10 +470,16 @@ public class Spreadsheet : AbstractSpreadsheet
         jso.WriteIndented = true;
         string data = JsonSerializer.Serialize(this, jso);
 
-        Debug.WriteLine("Actually Working");
-        Debug.WriteLine(data);
-
-        File.WriteAllText(filename, data);
+        //        Debug.WriteLine(data);
+        try
+        {
+            File.WriteAllText(filename, data);
+        }
+        
+        catch (DirectoryNotFoundException)
+        {
+            throw new SpreadsheetReadWriteException("Invalid save directory");
+        }
     }
     
 }

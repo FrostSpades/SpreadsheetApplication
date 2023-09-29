@@ -105,7 +105,7 @@ namespace SpreadsheetTests
         {
             Spreadsheet ss = new Spreadsheet();
 
-            ss.SetContentsOfCell("X1", "1");
+            ss.SetContentsOfCell("X1", "");
             ss.SetContentsOfCell("X1", "2");
             Assert.AreEqual((double)2, ss.GetCellContents("X1"));
 
@@ -248,6 +248,32 @@ namespace SpreadsheetTests
             Assert.AreEqual("apple", newSS.GetCellValue("X4"));
         }
 
+        [TestMethod]
+        public void TestInvalidFilePath()
+        {
+            Spreadsheet ss = new Spreadsheet();
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() =>ss.Save("/some/nonsense/path.txt"));
+        }
+
+
+        [TestMethod]
+        public void TestChanged()
+        {
+            Spreadsheet ss = new Spreadsheet();
+            Assert.IsFalse(ss.Changed);
+
+            ss.SetContentsOfCell("X1", "=X2");
+            ss.SetContentsOfCell("X2", "1");
+            ss.SetContentsOfCell("X3", "=X2");
+            ss.SetContentsOfCell("X4", "apple");
+
+            Assert.IsTrue(ss.Changed);
+
+            ss.Save("SpreadsheetTestFileUsedForTests.txt");
+
+            Assert.IsFalse(ss.Changed);
+        }
+
 
         [TestMethod]
         public void TestGetValue()
@@ -301,6 +327,68 @@ namespace SpreadsheetTests
             ss.SetContentsOfCell("X1", "yes");
             Assert.IsTrue(ss.GetCellValue("X2") is FormulaError);
             Assert.IsTrue(ss.GetCellValue("X3") is FormulaError);
+        }
+
+
+        [TestMethod]
+        public void TestNormalizer()
+        {
+            Func<string, bool> validator = s => true;
+            Func<string, string> normalizer = s => s.ToUpper();
+
+            Spreadsheet ss = new Spreadsheet(validator, normalizer, "default");
+
+            ss.SetContentsOfCell("x1", "1");
+            Assert.AreEqual((double)1, ss.GetCellContents("X1"));
+            Assert.AreEqual((double)1, ss.GetCellContents("x1"));
+        }
+
+        public bool ValidatorFunction(string s)
+        {
+            if (s.Equals("X1"))
+            {
+                return true;
+            }
+
+            else if (s.Equals("X2"))
+            {
+                return true;
+            }
+
+            else if (s.Equals("X3"))
+            {
+                return true;
+            }
+
+            else if (s.Equals("X4"))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+
+        [TestMethod]
+        public void TestWithValidator()
+        {
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+
+            Spreadsheet ss = new Spreadsheet(validator, normalizer, "default");
+
+            ss.SetContentsOfCell("x1", "1");
+            Assert.AreEqual((double)1, ss.GetCellContents("X1"));
+            ss.SetContentsOfCell("x2", "2");
+            Assert.AreEqual((double)2, ss.GetCellContents("X2"));
+            ss.SetContentsOfCell("x3", "3");
+            Assert.AreEqual((double)3, ss.GetCellContents("X3"));
+            ss.SetContentsOfCell("x4", "4");
+            Assert.AreEqual((double)4, ss.GetCellContents("X4"));
+
+            Assert.ThrowsException<InvalidNameException>(() => ss.SetContentsOfCell("A1", "=X1"));
+            Assert.ThrowsException<InvalidNameException>(() => ss.GetCellContents("X5"));
+            Assert.ThrowsException<InvalidNameException>(() => ss.GetCellValue("_1"));
         }
     }
 }
