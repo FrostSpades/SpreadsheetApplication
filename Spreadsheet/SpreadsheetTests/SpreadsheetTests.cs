@@ -38,15 +38,15 @@ namespace SpreadsheetTests
         {
             Spreadsheet ss = new Spreadsheet();
 
-            ss.SetContentsOfCell("X1", "1");
-            ss.SetContentsOfCell("X2", "2");
-            ss.SetContentsOfCell("X3", "3");
-            ss.SetContentsOfCell("X4", "4");
+            ss.SetContentsOfCell("X1", "a");
+            ss.SetContentsOfCell("X2", "b");
+            ss.SetContentsOfCell("X3", "c");
+            ss.SetContentsOfCell("X4", "d");
 
-            Assert.AreEqual("1", ss.GetCellContents("X1"));
-            Assert.AreEqual("2", ss.GetCellContents("X2"));
-            Assert.AreEqual("3", ss.GetCellContents("X3"));
-            Assert.AreEqual("4", ss.GetCellContents("X4"));
+            Assert.AreEqual("a", ss.GetCellContents("X1"));
+            Assert.AreEqual("b", ss.GetCellContents("X2"));
+            Assert.AreEqual("c", ss.GetCellContents("X3"));
+            Assert.AreEqual("d", ss.GetCellContents("X4"));
         }
 
         /// <summary>
@@ -57,10 +57,10 @@ namespace SpreadsheetTests
         {
             Spreadsheet ss = new Spreadsheet();
 
-            ss.SetContentsOfCell("X1", "1");
-            ss.SetContentsOfCell("X2", "2");
-            ss.SetContentsOfCell("X3", "3");
-            ss.SetContentsOfCell("X4", "4");
+            ss.SetContentsOfCell("X1", "=1");
+            ss.SetContentsOfCell("X2", "=2");
+            ss.SetContentsOfCell("X3", "=3");
+            ss.SetContentsOfCell("X4", "=4");
 
             Assert.AreEqual(new Formula("1"), ss.GetCellContents("X1"));
             Assert.AreEqual(new Formula("2"), ss.GetCellContents("X2"));
@@ -110,11 +110,11 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)2, ss.GetCellContents("X1"));
 
             ss.SetContentsOfCell("X1", "1");
-            ss.SetContentsOfCell("X1", "2");
-            Assert.AreEqual("2", ss.GetCellContents("X1"));
+            ss.SetContentsOfCell("X1", "a");
+            Assert.AreEqual("a", ss.GetCellContents("X1"));
 
             ss.SetContentsOfCell("X1", "1");
-            ss.SetContentsOfCell("X1", "2");
+            ss.SetContentsOfCell("X1", "=2");
             Assert.AreEqual(new Formula("2"), ss.GetCellContents("X1"));
         }
 
@@ -149,15 +149,15 @@ namespace SpreadsheetTests
         {
             Spreadsheet ss = new Spreadsheet();
 
-            ss.SetContentsOfCell("X6", "X5");
-            ss.SetContentsOfCell("X5", "X4");
-            ss.SetContentsOfCell("X4", "X3");
-            ss.SetContentsOfCell("X3", "X2");
-            ss.SetContentsOfCell("X1", "X2");
+            ss.SetContentsOfCell("X6", "=X5");
+            ss.SetContentsOfCell("X5", "=X4");
+            ss.SetContentsOfCell("X4", "=X3");
+            ss.SetContentsOfCell("X3", "=X2");
+            ss.SetContentsOfCell("X1", "=X2");
 
-            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "X1"));
-            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "X6"));
-            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "X5"));
+            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "=X1"));
+            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "=X6"));
+            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "=X5"));
         }
 
         /// <summary>
@@ -169,14 +169,14 @@ namespace SpreadsheetTests
             Spreadsheet ss = new Spreadsheet();
 
             ss.SetContentsOfCell("_X7", "1");
-            ss.SetContentsOfCell("X8", "_X7");
-            ss.SetContentsOfCell("X9", "X8");
+            ss.SetContentsOfCell("X8", "=_X7");
+            ss.SetContentsOfCell("X9", "=X8");
 
-            ss.SetContentsOfCell("X6", "X5");
-            ss.SetContentsOfCell("X5", "X4");
-            ss.SetContentsOfCell("X4", "X3");
-            ss.SetContentsOfCell("X3", "X2");
-            ss.SetContentsOfCell("X2", "X1");
+            ss.SetContentsOfCell("X6", "=X5");
+            ss.SetContentsOfCell("X5", "=X4");
+            ss.SetContentsOfCell("X4", "=X3");
+            ss.SetContentsOfCell("X3", "=X2");
+            ss.SetContentsOfCell("X2", "=X1");
 
             List<string> expectedList = new List<string> { "X1", "X2", "X3", "X4", "X5", "X6"};
             
@@ -216,10 +216,10 @@ namespace SpreadsheetTests
         {
             Spreadsheet ss = new Spreadsheet();
 
-            ss.SetContentsOfCell("X1", "X2");
-            ss.SetContentsOfCell("X2", "1");
+            ss.SetContentsOfCell("X1", "=X2");
+            ss.SetContentsOfCell("X2", "=1");
 
-            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "X1"));
+            Assert.ThrowsException<CircularException>(() => ss.SetContentsOfCell("X2", "=X1"));
             Assert.AreEqual(new Formula("1"), ss.GetCellContents("X2"));
         }
 
@@ -237,7 +237,43 @@ namespace SpreadsheetTests
 
             Spreadsheet newSS = new Spreadsheet("SpreadsheetTestFileUsedForTests.txt", s => true, s => s, "default");
 
-            Assert.Equals(new Formula("X2"), newSS.GetCellContents("X1"));
+            Assert.AreEqual(new Formula("X2"), newSS.GetCellContents("X1"));
+            Assert.AreEqual((double)1, newSS.GetCellContents("X2"));
+            Assert.AreEqual(new Formula("X2"), newSS.GetCellContents("X3"));
+            Assert.AreEqual("apple", newSS.GetCellContents("X4"));
+        }
+
+
+        [TestMethod]
+        public void TestGetValue()
+        {
+            Spreadsheet ss = new Spreadsheet();
+            ss.SetContentsOfCell("X1", "1");
+            ss.SetContentsOfCell("X2", "=X1*5");
+            ss.SetContentsOfCell("X3", "=X2+X1");
+
+            Assert.AreEqual((double)1, ss.GetCellValue("X1"));
+            Assert.AreEqual((double)5, ss.GetCellValue("X2"));
+            Assert.AreEqual((double)6, ss.GetCellValue("X3"));
+        }
+
+        [TestMethod]
+        public void TestGetValueAfterChange()
+        {
+            Spreadsheet ss = new Spreadsheet();
+            ss.SetContentsOfCell("X1", "1");
+            ss.SetContentsOfCell("X2", "=X1*5");
+            ss.SetContentsOfCell("X3", "=X2+X1");
+
+            Assert.AreEqual((double)1, ss.GetCellValue("X1"));
+            Assert.AreEqual((double)5, ss.GetCellValue("X2"));
+            Assert.AreEqual((double)6, ss.GetCellValue("X3"));
+
+            ss.SetContentsOfCell("X1", "2");
+
+            Assert.AreEqual((double)2, ss.GetCellValue("X1"));
+            Assert.AreEqual((double)10, ss.GetCellValue("X2"));
+            Assert.AreEqual((double)12, ss.GetCellValue("X3"));
         }
     }
 }

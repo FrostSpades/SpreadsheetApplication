@@ -15,12 +15,14 @@ using System.Transactions;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace SS;
 
 public class Spreadsheet : AbstractSpreadsheet
 {
     private Dictionary<string, Cell> cells = new Dictionary<string, Cell>();
+    private IDictionary<string, Cell> _Cells = new Dictionary<string, Cell>();
     private DependencyGraph graph = new DependencyGraph();
     private Func<string, bool> isValid;
     private Func<string, string> normalize;
@@ -32,6 +34,11 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             return cells.ToImmutableDictionary();
         }
+
+        set
+        {
+            _Cells = value;
+        }
     }
 
     /// <summary>
@@ -42,29 +49,40 @@ public class Spreadsheet : AbstractSpreadsheet
         public string StringForm { get; set; }
 
         [JsonIgnore]
-        public object contents { get; set; }
+        public object contents { get; }
         [JsonIgnore]
         public object value { get; set; }
 
-        public Cell(string name, string contents)
+        [JsonConstructor]
+        public Cell(string StringForm)
         {
-            this.contents = contents;
-            StringForm = contents;
-            this.value = contents;
+            this.StringForm = StringForm;
+            contents = StringForm;
+            value = StringForm;
         }
 
-        public Cell(string name, double contents)
+        public Cell(object oldContents)
         {
-            this.contents = contents;
-            StringForm = contents.ToString();
-            this.value = contents;
-        }
+            if (oldContents is string)
+            {
+                this.contents = oldContents;
+                StringForm = (string)oldContents;
+                this.value = oldContents;
+            }
 
-        public Cell(string name, Formula contents)
-        {
-            this.contents = contents;
-            StringForm = "="+contents.ToString();
-            this.value = 0;
+            else if (oldContents is double)
+            {
+                this.contents = oldContents;
+                StringForm = ((double)oldContents).ToString();
+                this.value = oldContents;
+            }
+
+            else
+            {
+                this.contents = oldContents;
+                StringForm = "=" + oldContents.ToString();
+                this.value = 0;
+            }
         }
     }
 
@@ -90,6 +108,7 @@ public class Spreadsheet : AbstractSpreadsheet
 
         string jsonCode = File.ReadAllText(path);
 
+        // Deserializes old spreadsheet
         Spreadsheet? oldSpreadsheet = JsonSerializer.Deserialize<Spreadsheet>(jsonCode);
 
         if (oldSpreadsheet == null)
@@ -98,14 +117,21 @@ public class Spreadsheet : AbstractSpreadsheet
         }
 
         // Go through the Dictionary names and values and add to this spreadsheet
-        IEnumerable<string> nameList = oldSpreadsheet.Cells.Keys;
+        IEnumerable<string> nameList = oldSpreadsheet._Cells.Keys;
 
         foreach (string name in nameList)
         {
-            SetCellContents(name, oldSpreadsheet.Cells[name].StringForm);
+            SetContentsOfCell(name, oldSpreadsheet._Cells[name].StringForm);
         }
     }
 
+    [JsonConstructor]
+    public Spreadsheet(string Version, IDictionary<string, Cell> Cells) : base(Version)
+    {
+        this.Cells = Cells;
+        isValid = s => true;
+        normalize = s => s;
+    }
 
     /// <summary>
     /// If name is invalid, throws an InvalidNameException.
@@ -234,14 +260,17 @@ public class Spreadsheet : AbstractSpreadsheet
         if (cells.ContainsKey(name))
         {
             graph.ReplaceDependees(name, new List<string>());
-            cells[name] = new Cell(name, number);
+            cells[name] = new Cell(number);
         }
 
         // If cell does not exist, add it
         else
         {
-            cells.Add(name, new Cell(name, number));
+            cells.Add(name, new Cell(number));
         }
+
+        // Evaluate Cell
+        //Evaluate(name);
 
         return GetCells(name);
     }
@@ -268,14 +297,17 @@ public class Spreadsheet : AbstractSpreadsheet
         if (cells.ContainsKey(name))
         {
             graph.ReplaceDependees(name, new List<string>());
-            cells[name] = new Cell(name, text);
+            cells[name] = new Cell(text);
         }
 
         // If cell does not exist, add it
         else
         {
-            cells.Add(name, new Cell(name, text));
+            cells.Add(name, new Cell(text));
         }
+
+        // Evaluate Cell
+        //Evaluate(name);
 
         return GetCells(name);
     }
@@ -310,7 +342,7 @@ public class Spreadsheet : AbstractSpreadsheet
             oldDependees = new List<string>();
             oldContents = "";
 
-            cells.Add(name, new Cell(name, formula));
+            cells.Add(name, new Cell(formula));
             graph.ReplaceDependees(name, formula.GetVariables());
         }
 
@@ -321,15 +353,17 @@ public class Spreadsheet : AbstractSpreadsheet
             oldContents = cells[name].contents;
 
             graph.ReplaceDependees(name, formula.GetVariables());
-            cells[name] = new Cell(name, formula);
+            cells[name] = new Cell(formula);
         }
 
-        // Give the cell its new value
-        Evaluate(name);
+        
 
         // Try to update data
         try
         {
+            // Give the cell its new value
+            Evaluate(name);
+
             return GetCells(name);
         }
 
@@ -337,7 +371,7 @@ public class Spreadsheet : AbstractSpreadsheet
         catch (CircularException)
         {
             graph.ReplaceDependees(name, oldDependees);
-            cells[name].contents = oldContents;
+            cells[name] = new Cell(oldContents);
             throw new CircularException();
         }
     }
@@ -417,9 +451,14 @@ public class Spreadsheet : AbstractSpreadsheet
 
     public override void Save(string filename)
     {
+        Changed = false;
+
         JsonSerializerOptions jso = new();
         jso.WriteIndented = true;
         string data = JsonSerializer.Serialize(this, jso);
+
+        Debug.WriteLine("Actually Working");
+        Debug.WriteLine(data);
 
         File.WriteAllText(filename, data);
     }
