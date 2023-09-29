@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -17,6 +18,8 @@ public class Spreadsheet : AbstractSpreadsheet
 {
     private Dictionary<string, Cell> cells = new Dictionary<string, Cell>();
     private DependencyGraph graph = new DependencyGraph();
+    private Func<string, bool> isValid;
+    private Func<string, string> normalize;
 
     /// <summary>
     /// Class for storing cell data
@@ -41,7 +44,27 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
-    public Spreadsheet() { }
+    public Spreadsheet() : this(s => true, s => s, "default")
+    {
+        Changed = false;
+    }
+
+    public Spreadsheet(Func<string, bool> validityFunction, Func<string, string> normalizeFunction, string version) : base(version)
+    {
+        isValid = validityFunction;
+        normalize = normalizeFunction;
+        Changed = false;
+    }
+
+    public Spreadsheet(string path, Func<string, bool> validityFunction, Func<string, string> normalizeFunction, string version) : base(version)
+    {
+        
+        isValid = validityFunction;
+        normalize = normalizeFunction;
+        Changed = false;
+        
+        /// REMEMBER TO IMPLEMENT PATH CONSTRUCTOR
+    }
 
 
     /// <summary>
@@ -74,8 +97,48 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     public override IEnumerable<string> GetNamesOfAllNonemptyCells()
     {
-        return cells.Keys;
+        IEnumerable<string> allNames = cells.Keys;
+        List<string> names = new List<string>();
+
+        foreach (string name in allNames)
+        {
+            if (!cells[name].contents.Equals("")) 
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
     }
+
+
+    public override IList<string> SetContentsOfCell(string name, string content)
+    {
+        // Normalizes name
+        string nameNormalized = normalize(name);
+
+        // If name isn't valid, throw an exception
+        if (!isValid(nameNormalized))
+        {
+            throw new InvalidNameException();
+        }
+
+        if (double.TryParse(content, out double result))
+        {
+            return SetCellContents(name, result);
+        }
+
+        else if (content.Length != 0 && content[0] == '=')
+        {
+            return SetCellContents(name, new Formula(content, normalize, isValid));
+        }
+
+        else
+        {
+            return SetCellContents(name, content);
+        }
+    }
+
 
     /// <summary>
     /// If name is invalid, throws an InvalidNameException.
@@ -87,7 +150,7 @@ public class Spreadsheet : AbstractSpreadsheet
     /// For example, if name is A1, B1 contains A1*2, and C1 contains B1+A1, the
     /// list {A1, B1, C1} is returned.
     /// </summary>
-    public override IList<string> SetCellContents(string name, double number)
+    protected override IList<string> SetCellContents(string name, double number)
     {
         // Throws exception if name isn't valid
         if (!CheckValidName(name))
@@ -121,7 +184,7 @@ public class Spreadsheet : AbstractSpreadsheet
     /// For example, if name is A1, B1 contains A1*2, and C1 contains B1+A1, the
     /// list {A1, B1, C1} is returned.
     /// </summary>
-    public override IList<string> SetCellContents(string name, string text)
+    protected override IList<string> SetCellContents(string name, string text)
     {
 
         // Throws exception if name isn't valid
@@ -159,7 +222,7 @@ public class Spreadsheet : AbstractSpreadsheet
     /// For example, if name is A1, B1 contains A1*2, and C1 contains B1+A1, the
     /// list {A1, B1, C1} is returned.
     /// </summary>
-    public override IList<string> SetCellContents(string name, Formula formula)
+    protected override IList<string> SetCellContents(string name, Formula formula)
     {
         // Throws exception if name isn't valid
         if (!CheckValidName(name))
@@ -167,39 +230,42 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
+        IEnumerable<string> oldDependees;
+        object oldContents;
+
         // If cell does not exist, add it
         if (!cells.ContainsKey(name))
         {
+            oldDependees = new List<string>();
+            oldContents = "";
+
             cells.Add(name, new Cell(formula));
             graph.ReplaceDependees(name, formula.GetVariables());
         }
 
-        // Removes all of name's dependents and sets its new value to number.
-        // If circular exception is caught, undo changes and then throw exception
+        // If cell does exist, change its contents and store old contents.
         else
         {
+            oldDependees = graph.GetDependees(name);
+            oldContents = cells[name].contents;
 
-            IEnumerable<string> oldDependees = graph.GetDependees(name);
-            object oldContents = cells[name].contents;
-
-            // Try to update data
-            try
-            {
-                graph.ReplaceDependees(name, formula.GetVariables());
-                cells[name].contents = formula;
-                return GetCells(name);
-            }
-
-            // If exception is thrown, undo changes and throw CircularException
-            catch (CircularException)
-            {
-                graph.ReplaceDependees(name, oldDependees);
-                cells[name].contents = oldContents;
-                throw new CircularException();
-            }
+            graph.ReplaceDependees(name, formula.GetVariables());
+            cells[name].contents = formula;
         }
 
-        return GetCells(name);
+        // Try to update data
+        try
+        {
+            return GetCells(name);
+        }
+
+        // If exception is thrown, undo changes and throw CircularException
+        catch (CircularException)
+        {
+            graph.ReplaceDependees(name, oldDependees);
+            cells[name].contents = oldContents;
+            throw new CircularException();
+        }
     }
 
     /// <summary>
@@ -274,4 +340,16 @@ public class Spreadsheet : AbstractSpreadsheet
     {
         return graph.GetDependents(name);
     }
+
+    public override void Save(string filename)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override object GetCellValue(string name)
+    {
+        throw new NotImplementedException();
+    }
+
+    
 }
