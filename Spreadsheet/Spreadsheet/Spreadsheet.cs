@@ -190,7 +190,10 @@ public class Spreadsheet : AbstractSpreadsheet
         // Recalculate cells
         foreach (string cell in cellsToRecalculate)
         {
-            cells[cell].value = ((Formula)cells[cell].contents).Evaluate(LookUp);
+            if (cells[cell].contents is Formula)
+            {
+                cells[cell].value = ((Formula)cells[cell].contents).Evaluate(LookUp);
+            }
         }
     }
 
@@ -270,7 +273,7 @@ public class Spreadsheet : AbstractSpreadsheet
         }
 
         // Evaluate Cell
-        //Evaluate(name);
+        Evaluate(name);
 
         return GetCells(name);
     }
@@ -307,7 +310,7 @@ public class Spreadsheet : AbstractSpreadsheet
         }
 
         // Evaluate Cell
-        //Evaluate(name);
+        Evaluate(name);
 
         return GetCells(name);
     }

@@ -225,7 +225,7 @@ namespace SpreadsheetTests
 
 
         [TestMethod]
-        public void Save()
+        public void TestSave()
         {
             Spreadsheet ss = new Spreadsheet();
             ss.SetContentsOfCell("X1", "=X2");
@@ -241,6 +241,11 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)1, newSS.GetCellContents("X2"));
             Assert.AreEqual(new Formula("X2"), newSS.GetCellContents("X3"));
             Assert.AreEqual("apple", newSS.GetCellContents("X4"));
+
+            Assert.AreEqual((double)1, newSS.GetCellValue("X1"));
+            Assert.AreEqual((double)1, newSS.GetCellValue("X2"));
+            Assert.AreEqual((double)1, newSS.GetCellValue("X3"));
+            Assert.AreEqual("apple", newSS.GetCellValue("X4"));
         }
 
 
@@ -274,6 +279,28 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)2, ss.GetCellValue("X1"));
             Assert.AreEqual((double)10, ss.GetCellValue("X2"));
             Assert.AreEqual((double)12, ss.GetCellValue("X3"));
+        }
+
+        [TestMethod]
+        public void TestFormulaError()
+        {
+            Spreadsheet ss = new Spreadsheet();
+            
+            ss.SetContentsOfCell("X3", "=X2+X1");
+            Assert.IsTrue(ss.GetCellValue("X3") is FormulaError);
+
+            ss.SetContentsOfCell("X2", "=X1*5");
+            Assert.IsTrue(ss.GetCellValue("X2") is FormulaError);
+
+            ss.SetContentsOfCell("X1", "1");
+
+            Assert.AreEqual((double)1, ss.GetCellValue("X1"));
+            Assert.AreEqual((double)5, ss.GetCellValue("X2"));
+            Assert.AreEqual((double)6, ss.GetCellValue("X3"));
+
+            ss.SetContentsOfCell("X1", "yes");
+            Assert.IsTrue(ss.GetCellValue("X2") is FormulaError);
+            Assert.IsTrue(ss.GetCellValue("X3") is FormulaError);
         }
     }
 }
