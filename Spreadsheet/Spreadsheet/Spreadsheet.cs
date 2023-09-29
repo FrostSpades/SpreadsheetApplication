@@ -226,6 +226,7 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
+        // Gets cell contents if cell exists
         if (cells.ContainsKey(name))
         {
             return cells[name].contents;
