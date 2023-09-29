@@ -26,21 +26,29 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     class Cell
     {
+        public string name { get; set; }
         public object contents { get; set; }
+        public object value { get; set; }
 
-        public Cell(string contents)
+        public Cell(string name, string contents)
         {
             this.contents = contents;
+            this.value = contents;
+            this.name = name;
         }
 
-        public Cell(double contents)
+        public Cell(string name, double contents)
         {
             this.contents = contents;
+            this.value = contents;
+            this.name = name;
         }
 
-        public Cell(Formula contents)
+        public Cell(string name, Formula contents, double value)
         {
             this.contents = contents;
+            this.name = name;
+            this.value = value;
         }
     }
 
@@ -92,6 +100,7 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
+
     /// <summary>
     /// Enumerates the names of all the non-empty cells in the spreadsheet.
     /// </summary>
@@ -111,6 +120,30 @@ public class Spreadsheet : AbstractSpreadsheet
         return names;
     }
 
+    private void Evaluate(string name)
+    {
+        // Gets cells that need to be recalculated
+        IEnumerable<string> cellsToRecalculate = GetCellsToRecalculate(name);
+
+        // Recalculate cells
+        foreach (string cell in cellsToRecalculate)
+        {
+            cells[cell].value = ((Formula)cells[cell].contents).Evaluate(LookUp);
+        }
+    }
+
+    private double LookUp(string name)
+    {
+        if (cells.ContainsKey(name))
+        {
+            if (cells[name].value is double)
+            {
+                return (double)cells[name].value;
+            }
+        }
+
+        throw new ArgumentException("Cell does not contain correct value");
+    }
 
     public override IList<string> SetContentsOfCell(string name, string content)
     {
@@ -130,7 +163,7 @@ public class Spreadsheet : AbstractSpreadsheet
 
         else if (content.Length != 0 && content[0] == '=')
         {
-            return SetCellContents(name, new Formula(content, normalize, isValid));
+            return SetCellContents(name, new Formula(content.Substring(1), normalize, isValid));
         }
 
         else
