@@ -1,6 +1,6 @@
 // Class that tests Spreadsheet class.
 // @author Ethan Andrews
-// @version September 22, 2023
+// @version September 29, 2023
 
 using SpreadsheetUtilities;
 using SS;
@@ -223,7 +223,9 @@ namespace SpreadsheetTests
             Assert.AreEqual(new Formula("1"), ss.GetCellContents("X2"));
         }
 
-
+        /// <summary>
+        /// Tests the basic save functionality.
+        /// </summary>
         [TestMethod]
         public void TestSave()
         {
@@ -248,6 +250,9 @@ namespace SpreadsheetTests
             Assert.AreEqual("apple", newSS.GetCellValue("X4"));
         }
 
+        /// <summary>
+        /// Tests if exception is thrown when given a fake path.
+        /// </summary>
         [TestMethod]
         public void TestInvalidFilePath()
         {
@@ -255,7 +260,9 @@ namespace SpreadsheetTests
             Assert.ThrowsException<SpreadsheetReadWriteException>(() =>ss.Save("/some/nonsense/path.txt"));
         }
 
-
+        /// <summary>
+        /// Tests changed functionality.
+        /// </summary>
         [TestMethod]
         public void TestChanged()
         {
@@ -274,7 +281,9 @@ namespace SpreadsheetTests
             Assert.IsFalse(ss.Changed);
         }
 
-
+        /// <summary>
+        /// Tests basic functionality of get value method.
+        /// </summary>
         [TestMethod]
         public void TestGetValue()
         {
@@ -288,6 +297,9 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)6, ss.GetCellValue("X3"));
         }
 
+        /// <summary>
+        /// Tests get value functionality when changes are made to the spreadsheet.
+        /// </summary>
         [TestMethod]
         public void TestGetValueAfterChange()
         {
@@ -307,6 +319,9 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)12, ss.GetCellValue("X3"));
         }
 
+        /// <summary>
+        /// Tests if formula error is returned with invalid formulas.
+        /// </summary>
         [TestMethod]
         public void TestFormulaError()
         {
@@ -329,7 +344,9 @@ namespace SpreadsheetTests
             Assert.IsTrue(ss.GetCellValue("X3") is FormulaError);
         }
 
-
+        /// <summary>
+        /// Tests basic functionality with normalizer.
+        /// </summary>
         [TestMethod]
         public void TestNormalizer()
         {
@@ -343,6 +360,11 @@ namespace SpreadsheetTests
             Assert.AreEqual((double)1, ss.GetCellContents("x1"));
         }
 
+        /// <summary>
+        /// Validator function that only accepts a few strings.
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
         public bool ValidatorFunction(string s)
         {
             if (s.Equals("X1"))
@@ -368,7 +390,9 @@ namespace SpreadsheetTests
             return false;
         }
 
-
+        /// <summary>
+        /// Tests basic functionality of validator.
+        /// </summary>
         [TestMethod]
         public void TestWithValidator()
         {
@@ -389,6 +413,156 @@ namespace SpreadsheetTests
             Assert.ThrowsException<InvalidNameException>(() => ss.SetContentsOfCell("A1", "=X1"));
             Assert.ThrowsException<InvalidNameException>(() => ss.GetCellContents("X5"));
             Assert.ThrowsException<InvalidNameException>(() => ss.GetCellValue("_1"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown with invalid path name.
+        /// </summary>
+        [TestMethod]
+        public void TestInvalidPathNameConstructor()
+        {
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("/some/nonsense/path.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when file is empty.
+        /// </summary>
+        [TestMethod]
+        public void TestNullConstructor()
+        {
+            try
+            {
+                File.WriteAllText("TestNullConstructorTestingFile.txt", "");
+            }
+            catch
+            {
+                return;
+            }
+
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("TestNullConstructorTestingFile.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if spreadsheet can save with nothing in it.
+        /// </summary>
+        [TestMethod]
+        public void TestEmptySave()
+        {
+            Spreadsheet ss = new Spreadsheet();
+
+            ss.Save("SpreadsheetTestFileUsedForTests.txt");
+
+            Spreadsheet newSS = new Spreadsheet("SpreadsheetTestFileUsedForTests.txt", s => true, s => s, "default");
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when given invalid formulas.
+        /// </summary>
+        [TestMethod]
+        public void TestFormulaFormatExceptionConstructor()
+        {
+            try
+            {
+                File.WriteAllText("TestTestingFile.txt", "{\"Cells\":{\"X4\":{\"StringForm\":\"=**\"},\"X3\":{\"StringForm\":\"=X2\"},\"X2\":{\"StringForm\":\"1\"},\"X1\":{\"StringForm\":\"=X2\"}},\"Version\":\"default\"}");
+            }
+            catch
+            {
+                return;
+            }
+
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("TestTestingFile.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when given circular formulas.
+        /// </summary>
+        [TestMethod]
+        public void TestCircularExceptionConstructor()
+        {
+            try
+            {
+                File.WriteAllText("TestTestingFile.txt", "{\"Cells\":{\"X4\":{\"StringForm\":\"=X3\"},\"X3\":{\"StringForm\":\"=X4\"},\"X2\":{\"StringForm\":\"1\"},\"X1\":{\"StringForm\":\"=X2\"}},\"Version\":\"default\"}");
+            }
+            catch
+            {
+                return;
+            }
+
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("TestTestingFile.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when given invalid names.
+        /// </summary>
+        [TestMethod]
+        public void TestInvalidNameConstructor()
+        {
+            try
+            {
+                File.WriteAllText("TestTestingFile.txt", "{\"Cells\":{\"4X4\":{\"StringForm\":\"=X3\"},\"X3\":{\"StringForm\":\"=X4\"},\"X2\":{\"StringForm\":\"1\"},\"X1\":{\"StringForm\":\"=X2\"}},\"Version\":\"default\"}");
+            }
+            catch
+            {
+                return;
+            }
+
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("TestTestingFile.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when given invalid version.
+        /// </summary>
+        [TestMethod]
+        public void TestIncorrectVersionConstructor()
+        {
+            try
+            {
+                File.WriteAllText("TestTestingFile.txt", "{\"Cells\":{\"4X4\":{\"StringForm\":\"=X3\"},\"X3\":{\"StringForm\":\"=X4\"},\"X2\":{\"StringForm\":\"1\"},\"X1\":{\"StringForm\":\"=X2\"}},\"Version\":\"1\"}");
+            }
+            catch
+            {
+                return;
+            }
+
+            Func<string, bool> validator = ValidatorFunction;
+            Func<string, string> normalizer = s => s.ToUpper();
+            Spreadsheet ss;
+
+            Assert.ThrowsException<SpreadsheetReadWriteException>(() => ss = new Spreadsheet("TestTestingFile.txt", validator, normalizer, "default"));
+        }
+
+        /// <summary>
+        /// Tests if exception is thrown when given invalid names to different methods.
+        /// </summary>
+        [TestMethod]
+        public void TestInvalidNames()
+        {
+            Spreadsheet ss = new Spreadsheet();
+
+            Assert.ThrowsException<InvalidNameException>(() => ss.SetContentsOfCell("%X1", "1"));
+            Assert.ThrowsException<InvalidNameException>(() => ss.SetContentsOfCell("1X1", "apple"));
+            Assert.ThrowsException<InvalidNameException>(() => ss.SetContentsOfCell("&&&&", "=1"));
+            Assert.ThrowsException<InvalidNameException>(() => ss.GetCellValue("&&&&"));
         }
     }
 }

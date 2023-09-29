@@ -1,6 +1,6 @@
 ﻿// Class that simulates spreadsheet behavior.
 // @author Ethan Andrews
-// @version September 22, 2023
+// @version September 29, 2023
 
 using SpreadsheetUtilities;
 using System;
@@ -27,6 +27,7 @@ public class Spreadsheet : AbstractSpreadsheet
     private Func<string, bool> isValid;
     private Func<string, string> normalize;
 
+    // Value for the json file
     [JsonInclude]
     public IDictionary<string, Cell> Cells
     {
@@ -53,6 +54,7 @@ public class Spreadsheet : AbstractSpreadsheet
         [JsonIgnore]
         public object value { get; set; }
 
+        // Constructor for the json file
         [JsonConstructor]
         public Cell(string StringForm)
         {
@@ -61,6 +63,7 @@ public class Spreadsheet : AbstractSpreadsheet
             value = StringForm;
         }
 
+        // Constructor for all else
         public Cell(object oldContents)
         {
             if (oldContents is string)
@@ -86,11 +89,20 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
+    /// <summary>
+    /// Default constructor. Uses identity function for normalize, and validates all strings. Version is set to "default"
+    /// </summary>
     public Spreadsheet() : this(s => true, s => s, "default")
     {
         Changed = false;
     }
 
+    /// <summary>
+    /// Constructor that uses a validator function, normalizer function, and version.
+    /// </summary>
+    /// <param name="validityFunction"></param>
+    /// <param name="normalizeFunction"></param>
+    /// <param name="version"></param>
     public Spreadsheet(Func<string, bool> validityFunction, Func<string, string> normalizeFunction, string version) : base(version)
     {
         isValid = validityFunction;
@@ -98,33 +110,98 @@ public class Spreadsheet : AbstractSpreadsheet
         Changed = false;
     }
 
+    /// <summary>
+    /// Constructor that takes a file path as an input, and creates a spreadsheet from that file path. File needs to be a valid spreadsheet
+    /// in the correct version. Takes validator function, normalizer function, and version as inputs.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <param name="validityFunction"></param>
+    /// <param name="normalizeFunction"></param>
+    /// <param name="version"></param>
+    /// <exception cref="SpreadsheetReadWriteException"></exception>
     public Spreadsheet(string path, Func<string, bool> validityFunction, Func<string, string> normalizeFunction, string version) : base(version)
     {
         
         isValid = validityFunction;
         normalize = normalizeFunction;
         Changed = false;
+        string jsonCode;
+        Spreadsheet? oldSpreadsheet;
+
+        // Try and read file from path
+        try
+        {
+            jsonCode = File.ReadAllText(path);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            throw new SpreadsheetReadWriteException("Invalid directory");
+        }
         
 
-        string jsonCode = File.ReadAllText(path);
-
         // Deserializes old spreadsheet
-        Spreadsheet? oldSpreadsheet = JsonSerializer.Deserialize<Spreadsheet>(jsonCode);
-
+        try
+        {
+            oldSpreadsheet = JsonSerializer.Deserialize<Spreadsheet>(jsonCode);
+        }
+        catch (JsonException)
+        {
+            throw new SpreadsheetReadWriteException("File does not produce a valid spreadsheet");
+        }
+        
+        // Checks if spreadsheet is null
         if (oldSpreadsheet == null)
         {
-            throw new SpreadsheetReadWriteException("File path is invalid");
+            throw new SpreadsheetReadWriteException("File is invalid");
+        }
+
+        // Check version
+        if (oldSpreadsheet.Version != version)
+        {
+            throw new SpreadsheetReadWriteException("Invalid version");
         }
 
         // Go through the Dictionary names and values and add to this spreadsheet
-        IEnumerable<string> nameList = oldSpreadsheet._Cells.Keys;
-
-        foreach (string name in nameList)
+        try
         {
-            SetContentsOfCell(name, oldSpreadsheet._Cells[name].StringForm);
+            IEnumerable<string> nameList = oldSpreadsheet._Cells.Keys;
+
+            foreach (string name in nameList)
+            {
+                SetContentsOfCell(name, oldSpreadsheet._Cells[name].StringForm);
+            }
         }
+
+        // Invalid formulas
+        catch (FormulaFormatException)
+        {
+            throw new SpreadsheetReadWriteException("Invalid formula in file");
+        }
+
+        // Catch circular exceptions
+        catch (CircularException)
+        {
+            throw new SpreadsheetReadWriteException("Formulas cannot be circular");
+        }
+
+        // Catch invalid names
+        catch (InvalidNameException)
+        {
+            throw new SpreadsheetReadWriteException("File cannot use invalid names");
+        }
+
+        catch
+        {
+            throw new SpreadsheetReadWriteException("Invalid file");
+        }
+
     }
 
+    /// <summary>
+    /// Constructor for the json serializer.
+    /// </summary>
+    /// <param name="Version"></param>
+    /// <param name="Cells"></param>
     [JsonConstructor]
     public Spreadsheet(string Version, IDictionary<string, Cell> Cells) : base(Version)
     {
@@ -160,6 +237,12 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
+    /// <summary>
+    /// Returns the value of the cell using "unName" the unNormalized name of the cell.
+    /// </summary>
+    /// <param name="unName"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidNameException"></exception>
     public override object GetCellValue(string unName)
     {
         string name = normalize(unName);
@@ -192,6 +275,10 @@ public class Spreadsheet : AbstractSpreadsheet
         return names;
     }
 
+    /// <summary>
+    /// Helper method that evaluates "name" and all functions dependent on "name".
+    /// </summary>
+    /// <param name="name"></param>
     private void Evaluate(string name)
     {
         // Gets cells that need to be recalculated
@@ -207,6 +294,12 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
+    /// <summary>
+    /// Function used to lookup values of cells given a "name"
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     private double LookUp(string name)
     {
         if (cells.ContainsKey(name))
@@ -220,6 +313,15 @@ public class Spreadsheet : AbstractSpreadsheet
         throw new ArgumentException("Cell does not contain correct value");
     }
 
+    /// <summary>
+    /// Sets the "content"s of "name". The method returns a list consisting of
+    /// name plus the names of all other cells whose value depends, directly
+    /// or indirectly, on the named cell.
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="content"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidNameException"></exception>
     public override IList<string> SetContentsOfCell(string name, string content)
     {
         // Set changed field to true
@@ -234,16 +336,19 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
+        // Checks if content is a double
         if (double.TryParse(content, out double result))
         {
             return SetCellContents(nameNormalized, result);
         }
 
+        // Checks if content is a formula
         else if (content.Length != 0 && content[0] == '=')
         {
             return SetCellContents(nameNormalized, new Formula(content.Substring(1), normalize, isValid));
         }
 
+        // Checks if content is a string
         else
         {
             return SetCellContents(nameNormalized, content);
@@ -462,6 +567,11 @@ public class Spreadsheet : AbstractSpreadsheet
         return graph.GetDependents(name);
     }
 
+    /// <summary>
+    /// Saves the json spreadsheet file to the given path "filename". Throws SpreadsheetReadWriteException if "filename" is invalid.
+    /// </summary>
+    /// <param name="filename"></param>
+    /// <exception cref="SpreadsheetReadWriteException"></exception>
     public override void Save(string filename)
     {
         Changed = false;
@@ -470,7 +580,7 @@ public class Spreadsheet : AbstractSpreadsheet
         jso.WriteIndented = true;
         string data = JsonSerializer.Serialize(this, jso);
 
-        //        Debug.WriteLine(data);
+        //Debug.WriteLine(data);
         try
         {
             File.WriteAllText(filename, data);
