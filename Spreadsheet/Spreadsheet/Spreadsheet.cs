@@ -4,13 +4,17 @@
 
 using SpreadsheetUtilities;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Transactions;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Collections.Immutable;
 
 namespace SS;
 
@@ -21,34 +25,46 @@ public class Spreadsheet : AbstractSpreadsheet
     private Func<string, bool> isValid;
     private Func<string, string> normalize;
 
+    [JsonInclude]
+    public IDictionary<string, Cell> Cells
+    {
+        get
+        {
+            return cells.ToImmutableDictionary();
+        }
+    }
+
     /// <summary>
     /// Class for storing cell data
     /// </summary>
-    class Cell
+    public class Cell
     {
-        public string name { get; set; }
+        public string StringForm { get; set; }
+
+        [JsonIgnore]
         public object contents { get; set; }
+        [JsonIgnore]
         public object value { get; set; }
 
         public Cell(string name, string contents)
         {
             this.contents = contents;
+            StringForm = contents;
             this.value = contents;
-            this.name = name;
         }
 
         public Cell(string name, double contents)
         {
             this.contents = contents;
+            StringForm = contents.ToString();
             this.value = contents;
-            this.name = name;
         }
 
-        public Cell(string name, Formula contents, double value)
+        public Cell(string name, Formula contents)
         {
             this.contents = contents;
-            this.name = name;
-            this.value = value;
+            StringForm = "="+contents.ToString();
+            this.value = 0;
         }
     }
 
@@ -71,7 +87,23 @@ public class Spreadsheet : AbstractSpreadsheet
         normalize = normalizeFunction;
         Changed = false;
         
-        /// REMEMBER TO IMPLEMENT PATH CONSTRUCTOR
+
+        string jsonCode = File.ReadAllText(path);
+
+        Spreadsheet? oldSpreadsheet = JsonSerializer.Deserialize<Spreadsheet>(jsonCode);
+
+        if (oldSpreadsheet == null)
+        {
+            throw new SpreadsheetReadWriteException("File path is invalid");
+        }
+
+        // Go through the Dictionary names and values and add to this spreadsheet
+        IEnumerable<string> nameList = oldSpreadsheet.Cells.Keys;
+
+        foreach (string name in nameList)
+        {
+            SetCellContents(name, oldSpreadsheet.Cells[name].StringForm);
+        }
     }
 
 
@@ -100,6 +132,10 @@ public class Spreadsheet : AbstractSpreadsheet
         }
     }
 
+    public override object GetCellValue(string name)
+    {
+        return cells[name].value;
+    }
 
     /// <summary>
     /// Enumerates the names of all the non-empty cells in the spreadsheet.
@@ -147,6 +183,9 @@ public class Spreadsheet : AbstractSpreadsheet
 
     public override IList<string> SetContentsOfCell(string name, string content)
     {
+        // Set changed field to true
+        Changed = true;
+
         // Normalizes name
         string nameNormalized = normalize(name);
 
@@ -195,13 +234,13 @@ public class Spreadsheet : AbstractSpreadsheet
         if (cells.ContainsKey(name))
         {
             graph.ReplaceDependees(name, new List<string>());
-            cells[name].contents = number;
+            cells[name] = new Cell(name, number);
         }
 
         // If cell does not exist, add it
         else
         {
-            cells.Add(name, new Cell(number));
+            cells.Add(name, new Cell(name, number));
         }
 
         return GetCells(name);
@@ -219,7 +258,6 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     protected override IList<string> SetCellContents(string name, string text)
     {
-
         // Throws exception if name isn't valid
         if (!CheckValidName(name))
         {
@@ -230,13 +268,13 @@ public class Spreadsheet : AbstractSpreadsheet
         if (cells.ContainsKey(name))
         {
             graph.ReplaceDependees(name, new List<string>());
-            cells[name].contents = text;
+            cells[name] = new Cell(name, text);
         }
 
         // If cell does not exist, add it
         else
         {
-            cells.Add(name, new Cell(text));
+            cells.Add(name, new Cell(name, text));
         }
 
         return GetCells(name);
@@ -272,7 +310,7 @@ public class Spreadsheet : AbstractSpreadsheet
             oldDependees = new List<string>();
             oldContents = "";
 
-            cells.Add(name, new Cell(formula));
+            cells.Add(name, new Cell(name, formula));
             graph.ReplaceDependees(name, formula.GetVariables());
         }
 
@@ -283,8 +321,11 @@ public class Spreadsheet : AbstractSpreadsheet
             oldContents = cells[name].contents;
 
             graph.ReplaceDependees(name, formula.GetVariables());
-            cells[name].contents = formula;
+            cells[name] = new Cell(name, formula);
         }
+
+        // Give the cell its new value
+        Evaluate(name);
 
         // Try to update data
         try
@@ -376,13 +417,11 @@ public class Spreadsheet : AbstractSpreadsheet
 
     public override void Save(string filename)
     {
-        throw new NotImplementedException();
-    }
+        JsonSerializerOptions jso = new();
+        jso.WriteIndented = true;
+        string data = JsonSerializer.Serialize(this, jso);
 
-    public override object GetCellValue(string name)
-    {
-        throw new NotImplementedException();
+        File.WriteAllText(filename, data);
     }
-
     
 }
