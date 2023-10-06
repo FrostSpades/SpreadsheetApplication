@@ -436,7 +436,7 @@ public class Formula
 
 
             // Checks if s is an integer, and if it is, stores the result in "result"
-            else if (int.TryParse(s, out int result))
+            else if (double.TryParse(s, out double result))
             {
 
                 // Checks if the operator stack has a multiply or divide at the top

@@ -254,7 +254,15 @@ public class Spreadsheet : AbstractSpreadsheet
             throw new InvalidNameException();
         }
 
-        return cells[normalize(name)].value;
+        if (cells.ContainsKey(name))
+        {
+            return cells[normalize(name)].value;
+        }
+
+        else
+        {
+            return "";
+        }
     }
 
     /// <summary>
