@@ -47,12 +47,12 @@ public class Spreadsheet : AbstractSpreadsheet
     /// </summary>
     public class Cell
     {
-        public string StringForm { get; set; }
+        public string StringForm { get; }
 
         [JsonIgnore]
         public object contents { get; }
         [JsonIgnore]
-        public object value { get; set; }
+        public object value { get; }
 
         // Constructor for the json file
         [JsonConstructor]
@@ -64,7 +64,7 @@ public class Spreadsheet : AbstractSpreadsheet
         }
 
         // Constructor for all else
-        public Cell(object oldContents)
+        public Cell(object oldContents, Spreadsheet s)
         {
             if (oldContents is string)
             {
@@ -84,7 +84,7 @@ public class Spreadsheet : AbstractSpreadsheet
             {
                 this.contents = oldContents;
                 StringForm = "=" + oldContents.ToString();
-                this.value = 0;
+                this.value = ((Formula)oldContents).Evaluate(s.LookUp);
             }
         }
     }
@@ -298,7 +298,8 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             if (cells[cell].contents is Formula)
             {
-                cells[cell].value = ((Formula)cells[cell].contents).Evaluate(LookUp);
+                //cells[cell].value = ((Formula)cells[cell].contents).Evaluate(LookUp);
+                cells[cell] = new Cell(((Formula)cells[cell].contents), this);
             }
         }
     }
@@ -387,13 +388,13 @@ public class Spreadsheet : AbstractSpreadsheet
         if (cells.ContainsKey(name))
         {
             graph.ReplaceDependees(name, new List<string>());
-            cells[name] = new Cell(number);
+            cells[name] = new Cell(number, this);
         }
 
         // If cell does not exist, add it
         else
         {
-            cells.Add(name, new Cell(number));
+            cells.Add(name, new Cell(number, this));
         }
 
         // Evaluate Cell
@@ -469,7 +470,7 @@ public class Spreadsheet : AbstractSpreadsheet
             oldDependees = new List<string>();
             oldContents = "";
 
-            cells.Add(name, new Cell(formula));
+            cells.Add(name, new Cell(formula, this));
             graph.ReplaceDependees(name, formula.GetVariables());
         }
 
@@ -480,7 +481,7 @@ public class Spreadsheet : AbstractSpreadsheet
             oldContents = cells[name].contents;
 
             graph.ReplaceDependees(name, formula.GetVariables());
-            cells[name] = new Cell(formula);
+            cells[name] = new Cell(formula, this);
         }
 
         
@@ -498,7 +499,7 @@ public class Spreadsheet : AbstractSpreadsheet
         catch (CircularException)
         {
             graph.ReplaceDependees(name, oldDependees);
-            cells[name] = new Cell(oldContents);
+            cells[name] = new Cell(oldContents, this);
             throw new CircularException();
         }
     }
