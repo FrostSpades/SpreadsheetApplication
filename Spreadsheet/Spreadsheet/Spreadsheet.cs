@@ -35,11 +35,6 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             return cells.ToImmutableDictionary();
         }
-
-        set
-        {
-            _Cells = value;
-        }
     }
 
     /// <summary>
@@ -121,7 +116,7 @@ public class Spreadsheet : AbstractSpreadsheet
     /// <exception cref="SpreadsheetReadWriteException"></exception>
     public Spreadsheet(string path, Func<string, bool> validityFunction, Func<string, string> normalizeFunction, string version) : base(version)
     {
-        
+
         isValid = validityFunction;
         normalize = normalizeFunction;
         Changed = false;
@@ -137,7 +132,7 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             throw new SpreadsheetReadWriteException("Invalid directory");
         }
-        
+
 
         // Deserializes old spreadsheet
         try
@@ -148,7 +143,7 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             throw new SpreadsheetReadWriteException("File does not produce a valid spreadsheet");
         }
-        
+
         // Checks if spreadsheet is null
         if (oldSpreadsheet == null)
         {
@@ -205,7 +200,7 @@ public class Spreadsheet : AbstractSpreadsheet
     [JsonConstructor]
     public Spreadsheet(string Version, IDictionary<string, Cell> Cells) : base(Version)
     {
-        this.Cells = Cells;
+        this._Cells = Cells;
         isValid = s => true;
         normalize = s => s;
     }
@@ -275,7 +270,7 @@ public class Spreadsheet : AbstractSpreadsheet
 
         foreach (string name in allNames)
         {
-            if (!cells[name].contents.Equals("")) 
+            if (!cells[name].contents.Equals(""))
             {
                 names.Add(name);
             }
@@ -484,7 +479,7 @@ public class Spreadsheet : AbstractSpreadsheet
             cells[name] = new Cell(formula, this);
         }
 
-        
+
 
         // Try to update data
         try
@@ -516,8 +511,8 @@ public class Spreadsheet : AbstractSpreadsheet
         foreach (char c in token)
         {
             // Checks if first character is letter or underscore
-            if (firstCharacter) 
-            { 
+            if (firstCharacter)
+            {
                 if (c != '_' && !Char.IsLetter(c))
                 {
                     return false;
@@ -595,11 +590,11 @@ public class Spreadsheet : AbstractSpreadsheet
         {
             File.WriteAllText(filename, data);
         }
-        
+
         catch (DirectoryNotFoundException)
         {
             throw new SpreadsheetReadWriteException("Invalid save directory");
         }
     }
-    
+
 }
