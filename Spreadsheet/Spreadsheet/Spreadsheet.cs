@@ -21,9 +21,14 @@ namespace SS;
 
 public class Spreadsheet : AbstractSpreadsheet
 {
+    // Backing list for data
     private Dictionary<string, Cell> cells = new Dictionary<string, Cell>();
     private IDictionary<string, Cell> _Cells = new Dictionary<string, Cell>();
+    
+    // Backing graph
     private DependencyGraph graph = new DependencyGraph();
+    
+    // Delegates for validator and normalizer functions
     private Func<string, bool> isValid;
     private Func<string, string> normalize;
 
