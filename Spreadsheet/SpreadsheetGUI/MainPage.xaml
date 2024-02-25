@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:SS="clr-namespace:SS"
+             x:Class="SpreadsheetGUI.MainPage">
+    <ContentPage.MenuBarItems>
+        <MenuBarItem Text="File">
+            <MenuFlyoutItem Text="New" Clicked="NewClicked" />
+            <MenuFlyoutItem Text="Open" Clicked="OpenClicked" />
+            <MenuFlyoutItem Text="Save" Clicked="SaveClicked" />
+        </MenuBarItem>
+        <MenuBarItem Text="Help">
+            <MenuFlyoutItem x:Name="buttonOne" Text="How to change selected cell?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonTwo" Text="How to change cell contents?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonThree" Text="How to open file?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonFour" Text="How to save file?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonFive" Text="How to new file?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonSix" Text="What is the special feature?" Clicked="HelpButton"/>
+            <MenuFlyoutItem x:Name="buttonSeven" Text="How to use special feature?" Clicked="HelpButton"/>
+        </MenuBarItem>
+    </ContentPage.MenuBarItems>
+
+    <Grid RowDefinitions="AUTO, *">
+        <HorizontalStackLayout Grid.Row="0">
+            <Label x:Name="nameBox" Text="Cell Name" Margin="10,10,0,0"></Label>
+            <Label x:Name="valueBox"  Margin="20,10,0,0" Text="Value" WidthRequest="100" ></Label>
+            <Entry x:Name="contentBox"  Margin="20,0,0,0" Text="" WidthRequest="300"></Entry>
+            <Button x:Name="contentButton" Margin="20,0,0,0" Text="Enter" Clicked="OnButtonClicked"></Button>
+            <Button x:Name="ss1Button" Margin="20,0,0,0" Text="Spreadsheet One" Clicked="SwitchSpreadsheetOne"></Button>
+            <Button x:Name="ss2Button" Margin="20,0,0,0" Text="Spreadsheet Two" Clicked="SwitchSpreadsheetTwo"></Button>
+        </HorizontalStackLayout>
+        <SS:SpreadsheetGrid x:Name="spreadsheetGrid" Grid.Row="1"/>
+    </Grid>
+
+
+</ContentPage>
+
